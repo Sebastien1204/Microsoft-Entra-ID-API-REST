@@ -1,0 +1,438 @@
+unit MainForm;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, System.Generics.Collections, System.JSON, REST.Client, REST.Types,
+  Data.Bind.Components, Data.Bind.ObjectScope, Vcl.Forms, Vcl.Controls,
+  Vcl.StdCtrls, Vcl.Dialogs;
+
+type
+  TForm1 = class(TForm)
+    lblTenantID: TLabel;
+    edtTenantID: TEdit;
+    lblClientID: TLabel;
+    edtClientID: TEdit;
+    lblClientSecret: TLabel;
+    edtClientSecret: TEdit;
+    lblUserID: TLabel;
+    edtUserID: TEdit;
+    btnGetToken: TButton;
+    btnGetUsers: TButton;
+    btnGetUserRoles: TButton;
+    btnGetUsersRolesApp: TButton;
+    btnShowAll: TButton;
+    MemoOutput: TMemo;
+    procedure btnGetTokenClick(Sender: TObject);
+    procedure btnGetUsersClick(Sender: TObject);
+    procedure btnGetUserRolesClick(Sender: TObject);
+    procedure btnGetUsersRolesAppClick(Sender: TObject);
+    procedure btnShowAllClick(Sender: TObject);
+  private
+    AccessToken: string;
+    Users: string;
+    Roles: string;
+    procedure GetToken;
+    procedure GetUsers;
+    procedure GetUsersRoles;
+    procedure GetUsersRolesApp;
+  public
+  end;
+
+var
+  Form1: TForm1;
+
+implementation
+
+{$R *.dfm}
+
+procedure TForm1.btnGetTokenClick(Sender: TObject);
+begin
+  MemoOutput.Clear;  // Effacer le contenu précédent avant d'afficher le nouveau résultat (zone de texte)
+  GetToken;
+end;
+
+procedure TForm1.btnGetUsersClick(Sender: TObject);
+begin
+  if AccessToken.IsEmpty then
+  begin
+    ShowMessage('Veuillez d''abord récupérer le token.');
+    Exit;
+  end;
+  MemoOutput.Clear;  // Effacer le contenu précédent avant d'afficher le nouveau résultat (zone de texte)
+  GetUsers;
+end;
+
+procedure TForm1.btnGetUserRolesClick(Sender: TObject);
+begin
+  if AccessToken.IsEmpty then
+  begin
+    ShowMessage('Veuillez d''abord récupérer le token.');
+    Exit;
+  end;
+  if Trim(edtUserID.Text) = '' then
+  begin
+    ShowMessage('Veuillez fournir un identifiant utilisateur.');
+    Exit;
+  end;
+  MemoOutput.Clear;  // Effacer le contenu précédent avant d'afficher le nouveau résultat (zone de texte)
+  GetUsersRoles;
+end;
+
+procedure TForm1.btnGetUsersRolesAppClick(Sender: TObject);
+begin
+  if AccessToken.IsEmpty then
+  begin
+    ShowMessage('Veuillez d''abord récupérer le token.');
+    Exit;
+  end;
+  if Trim(edtUserID.Text) = '' then
+  begin
+    ShowMessage('Veuillez fournir un identifiant utilisateur.');
+    Exit;
+  end;
+  MemoOutput.Clear;
+  GetUsersRolesApp;
+end;
+
+
+procedure TForm1.btnShowAllClick(Sender: TObject);
+var
+  RESTClient: TRESTClient;
+  RESTRequest: TRESTRequest;
+  RESTResponse: TRESTResponse;
+  JSONResponse, User, RoleObj: TJSONObject;
+  UsersArray, RolesArray: TJSONArray;
+  i, j: Integer;
+  UserId, UserDisplayName, RoleDisplayName: string;
+  EndpointUsers, EndpointRoles: string;
+begin
+  if AccessToken.IsEmpty then
+  begin
+    ShowMessage('Veuillez d''abord récupérer le token.');
+    Exit;
+  end;
+
+  MemoOutput.Clear;
+
+  // Endpoint pour récupérer les utilisateurs
+  EndpointUsers := 'https://graph.microsoft.com/v1.0/users';
+
+  RESTClient := TRESTClient.Create(EndpointUsers);
+  RESTRequest := TRESTRequest.Create(nil);
+  RESTResponse := TRESTResponse.Create(nil);
+  try
+    RESTRequest.Client := RESTClient;
+    RESTRequest.Response := RESTResponse;
+    RESTRequest.Method := rmGET;
+    RESTRequest.Params.AddItem('Authorization', 'Bearer ' + AccessToken, pkHTTPHEADER, [poDoNotEncode]);
+    RESTRequest.Execute;
+
+    JSONResponse := TJSONObject.ParseJSONValue(RESTResponse.Content) as TJSONObject;
+    if Assigned(JSONResponse) and JSONResponse.TryGetValue('value', UsersArray) then
+    begin
+      for i := 0 to UsersArray.Count - 1 do
+      begin
+        User := UsersArray.Items[i] as TJSONObject;
+        if not User.TryGetValue('displayName', UserDisplayName) then
+          UserDisplayName := '<Nom non disponible>';
+        if not User.TryGetValue('id', UserId) then
+          UserId := '<ID non disponible>';
+
+        MemoOutput.Lines.Add('Nom : ' + UserDisplayName);
+        MemoOutput.Lines.Add('ID : ' + UserId);
+
+        EndpointRoles := Format('https://graph.microsoft.com/v1.0/users/%s/memberOf', [UserId]);          // Endpoint pour les rôles d'un utilisateur du tenant.
+        RESTClient.BaseURL := EndpointRoles;
+        RESTRequest.Execute;
+
+        JSONResponse := TJSONObject.ParseJSONValue(RESTResponse.Content) as TJSONObject;
+        if Assigned(JSONResponse) and JSONResponse.TryGetValue('value', RolesArray) then
+        begin
+          if RolesArray.Count > 0 then
+          begin
+            for j := 0 to RolesArray.Count - 1 do
+            begin
+              RoleObj := RolesArray.Items[j] as TJSONObject;
+              if RoleObj.TryGetValue('displayName', RoleDisplayName) then
+              begin
+                if Trim(RoleDisplayName) = '' then
+                  MemoOutput.Lines.Add('Role : ')
+                else
+                  MemoOutput.Lines.Add('Role : ' + RoleDisplayName);
+              end;
+            end;
+          end
+          else
+            MemoOutput.Lines.Add('Role : ');
+        end
+        else
+          MemoOutput.Lines.Add('Role : <Erreur lors de la récupération des rôles>');
+
+        MemoOutput.Lines.Add('');
+      end;
+    end
+    else
+      MemoOutput.Lines.Add('Erreur lors de la récupération des utilisateurs.');
+  finally
+    RESTResponse.Free;
+    RESTRequest.Free;
+    RESTClient.Free;
+    if Assigned(JSONResponse) then
+      JSONResponse.Free;
+  end;
+end;
+
+procedure TForm1.GetToken;
+var
+  RESTClient: TRESTClient;
+  RESTRequest: TRESTRequest;
+  RESTResponse: TRESTResponse;
+  JSONResponse: TJSONObject;
+  TokenEndpoint: string;
+begin
+  TokenEndpoint := Format('https://login.microsoftonline.com/%s/oauth2/v2.0/token', [edtTenantID.Text]);
+
+  RESTClient := TRESTClient.Create(TokenEndpoint);
+  RESTRequest := TRESTRequest.Create(nil);
+  RESTResponse := TRESTResponse.Create(nil);
+  try
+    RESTRequest.Client := RESTClient;
+    RESTRequest.Response := RESTResponse;
+    RESTRequest.Method := rmPOST;
+
+    // Ajouter le header Content-Type
+    RESTRequest.Params.AddItem('Content-Type', 'application/x-www-form-urlencoded', pkHTTPHEADER, [poDoNotEncode]);
+
+    // Ajouter les paramètres du corps (les paramètres seront envoyés en tant que paramètres d'URL grâce à pkGETorPOST)
+    RESTRequest.AddParameter('client_id', edtClientID.Text, pkGETorPOST);
+    RESTRequest.AddParameter('client_secret', edtClientSecret.Text, pkGETorPOST);
+    RESTRequest.AddParameter('grant_type', 'client_credentials', pkGETorPOST);
+    RESTRequest.AddParameter('scope', 'https://graph.microsoft.com/.default', pkGETorPOST);
+
+    // Exécuter la requête
+    RESTRequest.Execute;
+
+    // Traiter la réponse
+    JSONResponse := TJSONObject.ParseJSONValue(RESTResponse.Content) as TJSONObject;
+    try
+      if Assigned(JSONResponse) and JSONResponse.TryGetValue('access_token', AccessToken) then
+      begin
+        MemoOutput.Lines.Add('Token récupéré avec succès :');
+        MemoOutput.Lines.Add(AccessToken);
+      end
+      else
+        MemoOutput.Lines.Add('Erreur lors de la récupération du token.');
+    finally
+      JSONResponse.Free;
+    end;
+  except
+    on E: Exception do
+      MemoOutput.Lines.Add('Erreur : ' + E.Message);
+  end;
+  RESTClient.Free;
+  RESTRequest.Free;
+  RESTResponse.Free;
+end;
+
+procedure TForm1.GetUsers;
+var
+  RESTClient: TRESTClient;
+  RESTRequest: TRESTRequest;
+  RESTResponse: TRESTResponse;
+  JSONResponse, Value: TJSONObject;
+  JSONArray: TJSONArray;
+  i: Integer;
+  Endpoint: string;
+begin
+  Endpoint := 'https://graph.microsoft.com/v1.0/users';
+
+  RESTClient := TRESTClient.Create(Endpoint);
+  RESTRequest := TRESTRequest.Create(nil);
+  RESTResponse := TRESTResponse.Create(nil);
+  try
+    RESTRequest.Client := RESTClient;
+    RESTRequest.Response := RESTResponse;
+    RESTRequest.Method := rmGET;
+
+    // Ajouter l'en-tête Authorization
+    RESTRequest.Params.AddItem('Authorization', 'Bearer ' + AccessToken, pkHTTPHEADER, [poDoNotEncode]);
+
+    // Exécuter la requête
+    RESTRequest.Execute;
+
+    // Traiter la réponse
+    JSONResponse := TJSONObject.ParseJSONValue(RESTResponse.Content) as TJSONObject;
+    try
+      if Assigned(JSONResponse) then
+      begin
+        if JSONResponse.TryGetValue('value', JSONArray) then
+        begin
+          MemoOutput.Lines.Add('Liste des utilisateurs :');
+          MemoOutput.Lines.Add('');
+          for i := 0 to JSONArray.Count - 1 do
+          begin
+            // Pour chaque utilisateur, récupérer le displayName et l'id
+            Value := JSONArray.Items[i] as TJSONObject;
+            if Value.TryGetValue('displayName', Users) then
+            begin
+              MemoOutput.Lines.Add('Nom : ' + Users);
+            end;
+            if Value.TryGetValue('id', Users) then
+            begin
+              MemoOutput.Lines.Add('ID : ' + Users);
+              MemoOutput.Lines.Add('');
+            end;
+          end;
+        end
+        else
+          MemoOutput.Lines.Add('Erreur : Pas de données utilisateur dans la réponse.');
+      end
+      else
+        MemoOutput.Lines.Add('Erreur lors de l''affichage des utilisateurs.');
+    finally
+      JSONResponse.Free;
+    end;
+  except
+    on E: Exception do
+      MemoOutput.Lines.Add('Erreur : ' + E.Message);
+  end;
+  RESTClient.Free;
+  RESTRequest.Free;
+  RESTResponse.Free;
+end;
+
+procedure TForm1.GetUsersRoles;
+var
+  RESTClient: TRESTClient;
+  RESTRequest: TRESTRequest;
+  RESTResponse: TRESTResponse;
+  JSONResponse, Value: TJSONObject;
+  JSONArray: TJSONArray;
+  i: Integer;
+  Endpoint: string;
+begin
+  Endpoint := Format('https://graph.microsoft.com/v1.0/users/%s/memberOf', [edtUserID.Text]);
+
+  RESTClient := TRESTClient.Create(Endpoint);
+  RESTRequest := TRESTRequest.Create(nil);
+  RESTResponse := TRESTResponse.Create(nil);
+  try
+    RESTRequest.Client := RESTClient;
+    RESTRequest.Response := RESTResponse;
+    RESTRequest.Method := rmGET;
+
+    // Ajouter l'en-tête Authorization
+    RESTRequest.Params.AddItem('Authorization', 'Bearer ' + AccessToken, pkHTTPHEADER, [poDoNotEncode]);
+
+    // Exécuter la requête
+    RESTRequest.Execute;
+
+    // Traiter la réponse
+    JSONResponse := TJSONObject.ParseJSONValue(RESTResponse.Content) as TJSONObject;
+    try
+      if Assigned(JSONResponse) then
+      begin
+        if JSONResponse.TryGetValue('value', JSONArray) then
+        begin
+          MemoOutput.Lines.Add('Liste des rôles :');
+          MemoOutput.Lines.Add('');
+          for i := 0 to JSONArray.Count - 1 do
+          begin
+            // Pour chaque rôle, récupérer le displayName
+            Value := JSONArray.Items[i] as TJSONObject;
+            if Value.TryGetValue('displayName', Roles) then
+            begin
+              MemoOutput.Lines.Add('Role : ' + Roles);
+              MemoOutput.Lines.Add('');
+            end;
+          end;
+        end
+        else
+          MemoOutput.Lines.Add('Erreur : Pas de données de rôles dans la réponse.');
+      end
+      else
+        MemoOutput.Lines.Add('Erreur lors de l''affichage des rôles.');
+    finally
+      JSONResponse.Free;
+    end;
+  except
+    on E: Exception do
+      MemoOutput.Lines.Add('Erreur : ' + E.Message);
+  end;
+  RESTClient.Free;
+  RESTRequest.Free;
+  RESTResponse.Free;
+end;
+
+procedure TForm1.GetUsersRolesApp;
+var
+  RESTClient: TRESTClient;
+  RESTRequest: TRESTRequest;
+  RESTResponse: TRESTResponse;
+  JSONResponse, Value: TJSONObject;
+  JSONArray: TJSONArray;
+  i: Integer;
+  ResourceDisplayName, PrincipalType: string;
+  Endpoint: string;
+begin
+  Endpoint := Format('https://graph.microsoft.com/v1.0/users/%s/appRoleAssignments', [edtUserID.Text]);
+
+  RESTClient := TRESTClient.Create(Endpoint);
+  RESTRequest := TRESTRequest.Create(nil);
+  RESTResponse := TRESTResponse.Create(nil);
+  try
+    RESTRequest.Client := RESTClient;
+    RESTRequest.Response := RESTResponse;
+    RESTRequest.Method := rmGET;
+
+    // Ajouter l'en-tête Authorization
+    RESTRequest.Params.AddItem('Authorization', 'Bearer ' + AccessToken, pkHTTPHEADER, [poDoNotEncode]);
+
+    // Exécuter la requête
+    RESTRequest.Execute;
+
+    // Traiter la réponse
+    JSONResponse := TJSONObject.ParseJSONValue(RESTResponse.Content) as TJSONObject;
+    try
+      if Assigned(JSONResponse) then
+      begin
+        if JSONResponse.TryGetValue('value', JSONArray) then
+        begin
+          MemoOutput.Lines.Add('Liste des rôles par application :');
+          MemoOutput.Lines.Add('');
+          for i := 0 to JSONArray.Count - 1 do
+          begin
+            // Pour chaque rôle, récupérer les champs "resourceDisplayName" et "principalType"
+            Value := JSONArray.Items[i] as TJSONObject;
+            if Value.TryGetValue('resourceDisplayName', ResourceDisplayName) then
+              MemoOutput.Lines.Add('Nom de l''application : ' + ResourceDisplayName)
+            else
+              MemoOutput.Lines.Add('Nom de l''application : <Non disponible>');
+
+            if Value.TryGetValue('principalType', PrincipalType) then
+              MemoOutput.Lines.Add('Type d''utilisation : ' + PrincipalType)
+            else
+              MemoOutput.Lines.Add('Type d''utilisation : <Non disponible>');
+
+            MemoOutput.Lines.Add('');
+          end;
+        end
+        else
+          MemoOutput.Lines.Add('Erreur : Pas de données de rôles dans la réponse.');
+      end
+      else
+        MemoOutput.Lines.Add('Erreur lors de l''analyse de la réponse JSON.');
+    finally
+      JSONResponse.Free;
+    end;
+  except
+    on E: Exception do
+      MemoOutput.Lines.Add('Erreur : ' + E.Message);
+  end;
+  RESTClient.Free;
+  RESTRequest.Free;
+  RESTResponse.Free;
+end;
+
+end.
