@@ -1,3 +1,4 @@
+
 unit MainForm;
 
 interface
@@ -56,7 +57,7 @@ procedure TForm1.btnGetUsersClick(Sender: TObject);
 begin
   if AccessToken.IsEmpty then
   begin
-    ShowMessage('Veuillez d''abord récupérer le token.');
+    ShowMessage('Veuillez d''abord rï¿½cupï¿½rer le token.');
     Exit;
   end;
   MemoOutput.Clear;
@@ -67,7 +68,7 @@ procedure TForm1.btnGetUserRolesClick(Sender: TObject);
 begin
   if AccessToken.IsEmpty then
   begin
-    ShowMessage('Veuillez d''abord récupérer le token.');
+    ShowMessage('Veuillez d''abord rï¿½cupï¿½rer le token.');
     Exit;
   end;
   if Trim(edtUserID.Text) = '' then
@@ -83,7 +84,7 @@ procedure TForm1.btnGetUsersRolesAppClick(Sender: TObject);
 begin
   if AccessToken.IsEmpty then
   begin
-    ShowMessage('Veuillez d''abord récupérer le token.');
+    ShowMessage('Veuillez d''abord rï¿½cupï¿½rer le token.');
     Exit;
   end;
   if Trim(edtUserID.Text) = '' then
@@ -109,13 +110,13 @@ var
 begin
   if AccessToken.IsEmpty then
   begin
-    ShowMessage('Veuillez d''abord récupérer le token.');
+    ShowMessage('Veuillez d''abord rï¿½cupï¿½rer le token.');
     Exit;
   end;
 
   MemoOutput.Clear;
 
-  // Endpoint pour récupérer les utilisateurs
+  // Endpoint pour rï¿½cupï¿½rer les utilisateurs
   EndpointUsers := 'https://graph.microsoft.com/v1.0/users';
 
   RESTClient := TRESTClient.Create(EndpointUsers);
@@ -142,7 +143,7 @@ begin
         MemoOutput.Lines.Add('Nom : ' + UserDisplayName);
         MemoOutput.Lines.Add('ID : ' + UserId);
 
-        EndpointRoles := Format('https://graph.microsoft.com/v1.0/users/%s/memberOf', [UserId]);          // Endpoint pour les rôles d'un utilisateur du tenant.
+        EndpointRoles := Format('https://graph.microsoft.com/v1.0/users/%s/memberOf', [UserId]);          // Endpoint pour les rï¿½les d'un utilisateur du tenant.
         RESTClient.BaseURL := EndpointRoles;
         RESTRequest.Execute;
 
@@ -167,13 +168,13 @@ begin
             MemoOutput.Lines.Add('Role : ');
         end
         else
-          MemoOutput.Lines.Add('Role : <Erreur lors de la récupération des rôles>');
+          MemoOutput.Lines.Add('Role : <Erreur lors de la rï¿½cupï¿½ration des rï¿½les>');
 
         MemoOutput.Lines.Add('');
       end;
     end
     else
-      MemoOutput.Lines.Add('Erreur lors de la récupération des utilisateurs.');
+      MemoOutput.Lines.Add('Erreur lors de la rï¿½cupï¿½ration des utilisateurs.');
   finally
     RESTResponse.Free;
     RESTRequest.Free;
@@ -204,25 +205,25 @@ begin
     // Ajouter le header Content-Type
     RESTRequest.Params.AddItem('Content-Type', 'application/x-www-form-urlencoded', pkHTTPHEADER, [poDoNotEncode]);
 
-    // Ajouter les paramètres du corps (les paramètres seront envoyés en tant que paramètres d'URL grâce à pkGETorPOST)
+    // Ajouter les paramï¿½tres du corps (les paramï¿½tres seront envoyï¿½s en tant que paramï¿½tres d'URL grï¿½ce ï¿½ pkGETorPOST)
     RESTRequest.AddParameter('client_id', edtClientID.Text, pkGETorPOST);
     RESTRequest.AddParameter('client_secret', edtClientSecret.Text, pkGETorPOST);
     RESTRequest.AddParameter('grant_type', 'client_credentials', pkGETorPOST);
     RESTRequest.AddParameter('scope', 'https://graph.microsoft.com/.default', pkGETorPOST);
 
-    // Exécuter la requête
+    // Exï¿½cuter la requï¿½te
     RESTRequest.Execute;
 
-    // Traiter la réponse
+    // Traiter la rï¿½ponse
     JSONResponse := TJSONObject.ParseJSONValue(RESTResponse.Content) as TJSONObject;
     try
       if Assigned(JSONResponse) and JSONResponse.TryGetValue('access_token', AccessToken) then
       begin
-        MemoOutput.Lines.Add('Token récupéré avec succès :');
+        MemoOutput.Lines.Add('Token rï¿½cupï¿½rï¿½ avec succï¿½s :');
         MemoOutput.Lines.Add(AccessToken);
       end
       else
-        MemoOutput.Lines.Add('Erreur lors de la récupération du token.');
+        MemoOutput.Lines.Add('Erreur lors de la rï¿½cupï¿½ration du token.');
     finally
       JSONResponse.Free;
     end;
@@ -255,13 +256,13 @@ begin
     RESTRequest.Response := RESTResponse;
     RESTRequest.Method := rmGET;
 
-    // Ajouter l'en-tête Authorization
+    // Ajouter l'en-tï¿½te Authorization
     RESTRequest.Params.AddItem('Authorization', 'Bearer ' + AccessToken, pkHTTPHEADER, [poDoNotEncode]);
 
-    // Exécuter la requête
+    // Exï¿½cuter la requï¿½te
     RESTRequest.Execute;
 
-    // Traiter la réponse
+    // Traiter la rï¿½ponse
     JSONResponse := TJSONObject.ParseJSONValue(RESTResponse.Content) as TJSONObject;
     try
       if Assigned(JSONResponse) then
@@ -272,7 +273,7 @@ begin
           MemoOutput.Lines.Add('');
           for i := 0 to JSONArray.Count - 1 do
           begin
-            // Pour chaque utilisateur, récupérer le displayName et l'id
+            // Pour chaque utilisateur, rï¿½cupï¿½rer le displayName et l'id
             Value := JSONArray.Items[i] as TJSONObject;
             if Value.TryGetValue('displayName', Users) then
             begin
@@ -286,7 +287,7 @@ begin
           end;
         end
         else
-          MemoOutput.Lines.Add('Erreur : Pas de données utilisateur dans la réponse.');
+          MemoOutput.Lines.Add('Erreur : Pas de donnï¿½es utilisateur dans la rï¿½ponse.');
       end
       else
         MemoOutput.Lines.Add('Erreur lors de l''affichage des utilisateurs.');
@@ -322,24 +323,24 @@ begin
     RESTRequest.Response := RESTResponse;
     RESTRequest.Method := rmGET;
 
-    // Ajouter l'en-tête Authorization
+    // Ajouter l'en-tï¿½te Authorization
     RESTRequest.Params.AddItem('Authorization', 'Bearer ' + AccessToken, pkHTTPHEADER, [poDoNotEncode]);
 
-    // Exécuter la requête
+    // Exï¿½cuter la requï¿½te
     RESTRequest.Execute;
 
-    // Traiter la réponse
+    // Traiter la rï¿½ponse
     JSONResponse := TJSONObject.ParseJSONValue(RESTResponse.Content) as TJSONObject;
     try
       if Assigned(JSONResponse) then
       begin
         if JSONResponse.TryGetValue('value', JSONArray) then
         begin
-          MemoOutput.Lines.Add('Liste des rôles :');
+          MemoOutput.Lines.Add('Liste des rï¿½les :');
           MemoOutput.Lines.Add('');
           for i := 0 to JSONArray.Count - 1 do
           begin
-            // Pour chaque rôle, récupérer le displayName
+            // Pour chaque rï¿½le, rï¿½cupï¿½rer le displayName
             Value := JSONArray.Items[i] as TJSONObject;
             if Value.TryGetValue('displayName', Roles) then
             begin
@@ -349,10 +350,10 @@ begin
           end;
         end
         else
-          MemoOutput.Lines.Add('Erreur : Pas de données de rôles dans la réponse.');
+          MemoOutput.Lines.Add('Erreur : Pas de donnï¿½es de rï¿½les dans la rï¿½ponse.');
       end
       else
-        MemoOutput.Lines.Add('Erreur lors de l''affichage des rôles.');
+        MemoOutput.Lines.Add('Erreur lors de l''affichage des rï¿½les.');
     finally
       JSONResponse.Free;
     end;
@@ -386,24 +387,24 @@ begin
     RESTRequest.Response := RESTResponse;
     RESTRequest.Method := rmGET;
 
-    // Ajouter l'en-tête Authorization
+    // Ajouter l'en-tï¿½te Authorization
     RESTRequest.Params.AddItem('Authorization', 'Bearer ' + AccessToken, pkHTTPHEADER, [poDoNotEncode]);
 
-    // Exécuter la requête
+    // Exï¿½cuter la requï¿½te
     RESTRequest.Execute;
 
-    // Traiter la réponse
+    // Traiter la rï¿½ponse
     JSONResponse := TJSONObject.ParseJSONValue(RESTResponse.Content) as TJSONObject;
     try
       if Assigned(JSONResponse) then
       begin
         if JSONResponse.TryGetValue('value', JSONArray) then
         begin
-          MemoOutput.Lines.Add('Liste des rôles par application :');
+          MemoOutput.Lines.Add('Liste des rï¿½les par application :');
           MemoOutput.Lines.Add('');
           for i := 0 to JSONArray.Count - 1 do
           begin
-            // Pour chaque rôle, récupérer les champs "resourceDisplayName" et "principalType"
+            // Pour chaque rï¿½le, rï¿½cupï¿½rer les champs "resourceDisplayName" et "principalType"
             Value := JSONArray.Items[i] as TJSONObject;
             if Value.TryGetValue('resourceDisplayName', ResourceDisplayName) then
               MemoOutput.Lines.Add('Nom de l''application : ' + ResourceDisplayName)
@@ -419,10 +420,10 @@ begin
           end;
         end
         else
-          MemoOutput.Lines.Add('Erreur : Pas de données de rôles dans la réponse.');
+          MemoOutput.Lines.Add('Erreur : Pas de donnï¿½es de rï¿½les dans la rï¿½ponse.');
       end
       else
-        MemoOutput.Lines.Add('Erreur lors de l''analyse de la réponse JSON.');
+        MemoOutput.Lines.Add('Erreur lors de l''analyse de la rï¿½ponse JSON.');
     finally
       JSONResponse.Free;
     end;
